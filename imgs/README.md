@@ -1,1 +1,1 @@
-## Images, logo, etc
+Images, logo, etc

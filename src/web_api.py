@@ -1,65 +1,54 @@
 import cv2
 import mediapipe as mp
-import json
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from flask import Flask, jsonify
+import threading
 
-
-# Initialize MediaPipe Hands.
+# Initialize MediaPipe Hands
 mp_hands = mp.solutions.hands
 hands = mp_hands.Hands(static_image_mode=False, max_num_hands=1)
 
+# Initialize Flask
+app = Flask(__name__)
 
-# Define a HTTP handler.
-class HandLandmarksHandler(BaseHTTPRequestHandler):
-    def _set_headers(self):
-        self.send_response(200)
-        self.send_header('Content-type', 'application/json')
-        self.end_headers()
+# Initialize hand landmarks
+hand_landmarks = None
 
-    def do_GET(self):
-        if self.path == '/':
-            cap = cv2.VideoCapture(0)
-            ret, frame = cap.read()
-            cap.release()
+# Capture video from the webcam
+cap = cv2.VideoCapture(0)
 
-            # Detect hand landmarks.
-            landmarks = self.detect_hand_landmarks(frame)
+def update_hand_landmarks():
+    global hand_landmarks
+    while True:
+        # Read a frame from the webcam
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-            # Send the response.
-            self._set_headers()
-            self.wfile.write(json.dumps({'hand_landmarks': landmarks}).encode('utf-8'))
-        else:
-            self.send_response(404)
-            self.end_headers()
+        # Flip the frame horizontally for selfie view
+        frame = cv2.flip(frame, 1)
 
-    def detect_hand_landmarks(self, frame):
-        # Convert the BGR image to RGB.
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        # Convert the BGR image to RGB
+        rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
-        results = hands.process(rgb_frame)
+        # Process the image and get hand landmarks
+        results = hands.process(rgb_image)
 
-        landmarks = []
+        # Update hand landmarks
         if results.multi_hand_landmarks:
-            for hand_landmarks in results.multi_hand_landmarks:
-                for landmark in hand_landmarks.landmark:
-                    landmarks.append({
-                        'x': landmark.x,
-                        'y': landmark.y,
-                        'z': landmark.z
-                    })
-        return landmarks
+            hand_landmarks = results.multi_hand_landmarks[0]
 
-def run_server(server_class=HTTPServer, handler_class=HandLandmarksHandler):
-    server_address = (HOST, PORT)
-    httpd = server_class(server_address, handler_class)
-    print(f'Starting server on {HOST}:{PORT}...')
-    httpd.serve_forever()
+@app.route('/landmarks')
+def get_landmarks():
+    global hand_landmarks
+    if hand_landmarks is None:
+        return jsonify(None)
+    else:
+        landmarks = [{'x': landmark.x, 'y': landmark.y, 'z': landmark.z} for landmark in hand_landmarks.landmark]
+        return jsonify(landmarks)
 
-
-# Start the server.
 if __name__ == '__main__':
-    # Define the server parameters.
-    HOST = 'localhost'
-    PORT = 8080
+    # Start a thread to update hand landmarks
+    threading.Thread(target=update_hand_landmarks).start()
 
-    run_server()
+    # Start the Flask app
+    app.run(host='0.0.0.0', port=5000)

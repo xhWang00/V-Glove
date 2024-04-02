@@ -44,7 +44,9 @@ def get_landmarks():
         return jsonify(None)
     else:
         landmarks = [{'x': landmark.x, 'y': landmark.y, 'z': landmark.z} for landmark in hand_landmarks.landmark]
-        return jsonify(landmarks)
+        result = {}
+        result['Items'] = landmarks
+        return jsonify(result)
 
 if __name__ == '__main__':
     # Start a thread to update hand landmarks

@@ -3,6 +3,7 @@ attrs==23.2.0
 cffi==1.16.0
 contourpy==1.2.0
 cycler==0.12.1
+Flask==3.0.2
 flatbuffers==24.3.7
 fonttools==4.50.0
 jax==0.4.25
